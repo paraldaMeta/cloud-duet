@@ -1,0 +1,121 @@
+# Cloud Duet
+
+**中文** · 一个开源的主动式工作助手：每天给你简报，在后台替你干活，发邮件、付款、提交表单之前一定先问你。界面默认中文，可在「资料 → 语言」切换成 English。
+
+**English** · An open-source proactive work agent for the web. It briefs you, works in the background and always asks before it sends, pays or submits anything. The UI defaults to Simplified Chinese; switch to English under Profile → Language.
+
+It covers onboarding, the chat / tasks / make tabs, approvals, channels, connectors and settings, with hand-built animations and interactions. It runs fully offline on a scripted **demo engine** with a fictional sample workspace (Northfield Studio). Plug in your own model key and a real model takes over, calling the app's tools itself. Add a Composio key and it works on your real Gmail, Calendar, Drive, Slack and more; the built-in browser and phone notifications work with no key at all.
+
+No keys are bundled. Every key is yours to add, in the app or in `.env.local`.
+
+> Inspired by Anthropic's Claude Duet research preview. Independent project; not affiliated with or endorsed by Anthropic. "Claude" is a trademark of Anthropic.
+
+## Run it
+
+```bash
+npm install
+npm run dev        # http://localhost:4317
+```
+
+Optional keys go in `.env.local` (see `.env.example`) or in the app under Profile → **Keys & services**.
+
+Everyone signs in. Email + password works out of the box (a new email creates an account); Google and Apple appear once their OAuth clients are configured. Each account gets its own workspace in `data/users/<id>/` (git-ignored): state, model key, service keys and push subscriptions. The first account created inherits a pre-accounts `data/state.json`. Profile → **Reset demo workspace** starts over; long-press your initials (top right) to replay onboarding.
+
+## Running it for other people
+
+The first account to sign in owns the server. Keys in `.env.local` only work for the owner (and anyone in `SHARED_KEYS_FOR`); everyone else brings their own keys in the app. Set `ALLOW_SIGNUP=false` or `ALLOWED_EMAILS` to control who can register, set `PUBLIC_URL` to the address people use, and `TRUST_PROXY=1` only behind your own reverse proxy. Sessions can be revoked (signing out ends them on the server), sign-in is throttled, and the built-in browser can't reach private network addresses unless `BROWSER_ALLOW_PRIVATE=1`.
+
+## Keys & services
+
+| Service | What it turns on | Where to get it | Where it goes |
+| --- | --- | --- | --- |
+| Model | Real replies and the tool loop | [Anthropic](https://console.anthropic.com/settings/keys) or [OpenAI](https://platform.openai.com/api-keys) / any compatible endpoint | Profile → Model & API key, or `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` |
+| Composio | Real Gmail, Calendar, Drive, Slack, Stripe, GitHub, HubSpot… | [platform.composio.dev](https://platform.composio.dev) | Profile → Keys & services, or `COMPOSIO_API_KEY` |
+| Browserbase | Cloud browser with a live view link | [browserbase.com/settings](https://www.browserbase.com/settings) | Keys & services, or `BROWSERBASE_API_KEY` + `BROWSERBASE_PROJECT_ID` |
+| Google sign-in | "Continue with Google" | [Google Cloud credentials](https://console.cloud.google.com/apis/credentials) (Web application, redirect `<origin>/api/auth/google/callback`) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| Apple sign-in | "Continue with Apple" | [Services ID](https://developer.apple.com/account/resources/identifiers/list/serviceId) + [key](https://developer.apple.com/account/resources/authkeys/list) (paid developer account, return URL `<origin>/api/auth/apple/callback`) | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` |
+| Push notifications | System notifications on desktop and phone | Nothing: VAPID keys are generated into `data/vapid.json` | Profile → Notifications |
+
+- **Connectors.** With Composio set, tapping Connect on an app opens its real OAuth page and returns to `/api/connectors/<id>/callback`. Connected apps show "Your real account"; the model gets `app_find_actions` / `app_run_action` for them, and the sample tools for that app step aside. Anything that writes (send, create, delete…) goes through an approval card first. Without Composio, Connect links the sample data.
+- **The built-in browser.** Browser tasks drive a real Chrome through Playwright: Browserbase when its key is set, otherwise Chrome on this server (`CHROME_PATH`). The model reads pages as numbered controls, posts screenshots to the task, asks for logins with the sign-in card (the password is typed into the page and never stored or shown to the model) and clicks final submit buttons only after approval. Idle browsers close after 15 minutes.
+- **Files.** The + menu (or paste) uploads files up to 15 MB into `data/users/<id>/files/`. Images and PDFs go to the model as real content; text files go in as text. Only the four most recent attachments are sent in full.
+- **Share links.** Share on a dashboard creates a read-only public link at `/s/<token>` (no sign-in, not indexed, sandboxed by a strict CSP). Tokens live in `data/shares.json`; unsharing revokes them.
+- **Push.** Turning on notifications registers `public/sw.js` and subscribes the device. On iPhone, add Duet to the Home Screen first (Share → Add to Home Screen); the app ships a web manifest and icons. OAuth and push need https, so behind a tunnel set `PUBLIC_URL` if redirects come back on the wrong host.
+
+## What's in it
+
+- **Six-page onboarding, then sign-in**: the 24-hour clock dial with its trailing wedge and rim pulses; apps flying along a dotted arc into Duet, followed by a check badge; the agent's cursor filling a form in its own browser; the safety card; Slack; notifications; then the orange check celebration (a wavy line that tucks into a check, plus a burst of strokes). Sign-in is the next screen.
+- **Mascot**: a single 72-point path that morphs per frame between moods (idle wave, working, tasks zigzag, cursive "ee" while writing, dash plus dot while thinking, Saturn ring while searching, speed streaks when starting, listening). The circle bobs and squashes.
+- **Chat**: live status pill, typing dots, quick replies, long-press reactions, swipe left for timestamps, a "New" squiggle divider, spawned-task chips, and cards (email / payment / sign / delete approvals with inline edit and a glow highlight, plate, suggestions, a swipeable proactive card, artifacts with a metric ticker, skills, confirmations, alerts, usage limits).
+- **Tasks**: Active / Up next, status groups, routines with run history and Run now, and a slide-in task detail with steps, updates, resources and its own thread.
+- **Make**: a hero with a typewriter prompt, a fan-out FAB, a build view with a tracing perimeter and live statuses, an artifact viewer (dashboards, docs, slides, web pages, designs) and pinning to the tab bar.
+- **Side menu, channels and sheets**: the side menu pushes the app aside, plus channels with an icon/colour picker, the access sheet, connector tool policies (Ask / Always), profile, usage with the free reset, memory, notifications, payments, and Model & API key.
+- **Voice mode** (Web Speech API) and in-app notification banners (plus system notifications when the tab is hidden).
+
+## Language
+
+Copy is written in English in the code and translated through `src/lib/i18n/` (`zh/*.ts` dictionaries keyed by the English text, so a missing entry falls back to English). The browser keeps the choice in `localStorage`; the server keeps a copy in the account's settings so its own replies, notes and the model's replies follow it. To add a language, add a dictionary and a `Lang` entry.
+
+## Model / API key
+
+The model hook is reserved, not required.
+
+- In the app: Profile → **Model & API key**. Pick Anthropic or any OpenAI-compatible endpoint, paste a key, and optionally set the model and base URL. **Test** does a one-token round trip.
+- Or set environment variables: `ANTHROPIC_API_KEY`, or `OPENAI_API_KEY` (+ `OPENAI_BASE_URL`).
+
+Keys are stored server-side in `data/users/<id>/model.json` (mode 600) and never sent to the browser. If a model call fails, that reply falls back to the demo engine with a grey note.
+
+### What the model can do
+
+With a key set, chat replies, task threads and started suggestions run through a tool loop (`src/lib/server/agent/`). The model decides which tools to call, the app shows the matching live status ("Searching your email", "Checking memory"…), and results go back to the model until it's done (up to 12 turns).
+
+| Tool | What it does |
+| --- | --- |
+| `search_email`, `read_calendar`, `search_files`, `list_invoices` | Read the sample workspace. Each needs its connector connected. |
+| `check_memory`, `search_past_chats`, `remember` | Memory, skills, open tasks, pending approvals, earlier messages. |
+| `set_reminder` | Posts and notifies at the given time. |
+| `draft_email`, `revise_draft` | An approval card, or a send when Gmail's Send email is set to **Always**. |
+| `request_payment` | A Link payment approval (test mode by default). |
+| `use_browser` | Starts a browser task, which gets `browser_open`, `browser_look`, `browser_click`, `browser_type`, `browser_scroll`, `browser_request_login` and `browser_submit`. |
+| `app_find_actions`, `app_run_action` | Real connected apps through Composio; writes need approval. |
+| `start_task` | A background task that runs its own loop with `set_steps`, `update_progress`, `add_link` and `finish_task`. |
+| `make_artifact` | Docs written by the model in markdown, or dashboards, decks, pages and designs. |
+| `propose_task`, `suggest_tasks`, `quick_replies` | Cards and tappable replies. |
+| `web_search` | Anthropic's server-side web search, on api.anthropic.com only. |
+
+Every call passes the guardrails first (no trading, no moving money, no card or SSN numbers leaving the app). Sending, paying and submitting always wait for the person's OK, unless they set that tool to Always. Approving a draft inside a model-run task resumes the task so the model can wrap it up. Apps that aren't connected through Composio keep using the fictional sample workspace. When Gmail is real, approving an email draft sends it from the person's Gmail.
+
+HTTP interface:
+
+| Method | Path | Body |
+| --- | --- | --- |
+| `GET` | `/api/model` | → `{ provider, model, baseURL, hasKey, keyHint }` |
+| `PUT` | `/api/model` | `{ provider?: "anthropic" \| "openai", apiKey?, model?, baseURL? }` |
+| `DELETE` | `/api/model` | clears the saved key |
+| `POST` | `/api/model/test` | → `{ ok, error?, ms }` |
+
+To add another model backend, write an adapter next to `anthropic()` and `openai()` in `src/lib/server/agent/loop.ts`.
+
+## Layout
+
+```
+src/app/api/[...path]/route.ts   every action (REST-ish, per signed-in account)
+src/app/api/auth/[...path]/      email, Google and Apple sign-in, sign-out
+src/app/api/events/route.ts      server-sent events stream
+src/lib/server/                  store, event bus, guardrails, demo engine, provider
+src/lib/server/{auth,context}.ts accounts, sessions, per-account data
+src/lib/server/composio.ts       real apps
+src/lib/server/browser.ts        the agent's browser (Playwright)
+src/lib/server/push.ts           Web Push
+src/lib/server/agent/            the model's tool loop and its tools
+src/lib/client/store.ts          zustand store fed by SSE
+src/components/duet/             UI: chat, tasks, make, onboarding, sheets, mascot
+```
+
+## Credits
+
+Built with Next.js, Tailwind, shadcn/ui, motion and zustand. The architecture and guardrails draw on [Studio1-OSS/OpenDuet](https://github.com/Studio1-OSS/OpenDuet) and [hmody1m/covo](https://github.com/hmody1m/covo) (both MIT).
+
+## License
+
+MIT. See [LICENSE](LICENSE).
