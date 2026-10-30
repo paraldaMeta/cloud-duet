@@ -6,11 +6,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useT } from "@/lib/client/i18n";
 import { api, useDuet } from "@/lib/client/store";
-import type { Connector } from "@/lib/shared/types";
+import type { Connector, DirectApp } from "@/lib/shared/types";
 import { cn } from "@/lib/utils";
 import { AppLogo } from "../Logos";
 import { Mascot } from "../Mascot";
 import { Drawer, Group, Row, Segment } from "../Drawer";
+import { DirectSetup } from "./DirectSetup";
 
 const CATEGORIES: { id: Connector["category"]; label: string; Icon: typeof Mail; off: string; on: string }[] = [
   { id: "files", label: "Files and docs", Icon: FolderClosed, off: "Can't read your files yet", on: "Reads your {apps}" },
@@ -72,6 +73,19 @@ export function AssistantSheet({ open }: { open: boolean }) {
               );
             })}
           </Group>
+          <Group title={t("Popular in China")}>
+            {data.connectors.filter((c) => c.direct).map((c) => (
+              <Row
+                key={c.id}
+                icon={<AppLogo id={c.id} size={24} />}
+                label={c.name}
+                detail={c.connected ? c.accounts[0] : c.description}
+                right={c.connected ? <span className="text-[13px] font-medium text-ready">{t("Connected")}</span> : <span className="rounded-full bg-black/[0.06] px-3 py-1 text-[13px] font-medium dark:bg-white/10">{t("Connect")}</span>}
+                chevron={false}
+                onClick={() => set({ sheet: { connector: c.id } })}
+              />
+            ))}
+          </Group>
           <Group>
             <Row icon={<Plus size={19} className="text-ink-2" />} label={t("More apps")} detail="QuickBooks, Gusto, Docusign, HubSpot…" onClick={() => setMore(true)} />
           </Group>
@@ -110,9 +124,11 @@ export function ConnectorSheet({ id }: { id: string | null }) {
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [account, setAccount] = useState("");
+  const [editing, setEditing] = useState(false);
   const c = data?.connectors.find((x) => x.id === id);
   const close = () => {
     setAdding(false);
+    setEditing(false);
     setAccount("");
     set({ sheet: null });
   };
@@ -205,7 +221,7 @@ export function ConnectorSheet({ id }: { id: string | null }) {
                     </button>
                   </form>
                 ) : (
-                  <Row icon={<Plus size={18} className="text-ink-2" />} label={t("Add another account")} onClick={() => void addAccount()} />
+                  !c.direct && <Row icon={<Plus size={18} className="text-ink-2" />} label={t("Add another account")} onClick={() => void addAccount()} />
                 )}
               </Group>
               <Group
@@ -247,10 +263,20 @@ export function ConnectorSheet({ id }: { id: string | null }) {
                   />
                 ))}
               </Group>
+              {c.direct &&
+                (editing ? (
+                  <DirectSetup id={c.id as DirectApp} name={c.name} onDone={() => setEditing(false)} />
+                ) : (
+                  <Group>
+                    <Row label={t("Change settings")} onClick={() => setEditing(true)} />
+                  </Group>
+                ))}
               <Group>
                 <Row label={t("Disconnect")} danger onClick={() => connect(false)} chevron={false} />
               </Group>
             </>
+          ) : c.direct ? (
+            <DirectSetup id={c.id as DirectApp} name={c.name} />
           ) : (
             <div className="mt-6">
               <button

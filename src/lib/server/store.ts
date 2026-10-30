@@ -32,7 +32,9 @@ function load(uid: string): AppState {
     raw = {};
   }
   const base = initialState();
-  return { ...base, ...raw, status: {}, typing: {}, usage: { ...base.usage, ...raw.usage } } as AppState;
+  // Connectors added in later versions show up in workspaces saved before them.
+  const connectors = raw.connectors ? [...raw.connectors, ...base.connectors.filter((c) => !raw.connectors!.some((x) => x.id === c.id))] : base.connectors;
+  return { ...base, ...raw, connectors, status: {}, typing: {}, usage: { ...base.usage, ...raw.usage } } as AppState;
 }
 
 export function state(): AppState {

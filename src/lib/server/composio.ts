@@ -40,9 +40,9 @@ async function session(toolkits?: string[]) {
   return client().create(userId(), { ...(toolkits ? { toolkits } : {}), manageConnections: false });
 }
 
-/** Apps connected for real, as Duet connector ids. */
+/** Apps connected for real through Composio, as Duet connector ids. */
 export function realApps(): string[] {
-  return state().connectors.filter((c) => c.connected && c.real).map((c) => c.id);
+  return state().connectors.filter((c) => c.connected && c.real && TOOLKITS[c.id]).map((c) => c.id);
 }
 
 export async function connectUrl(connectorId: string, callbackUrl: string): Promise<string> {

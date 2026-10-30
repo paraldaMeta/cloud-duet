@@ -3,7 +3,7 @@
 // Anything that leaves the app (email, payments, form submits) goes through an
 // approval card; the model is told it hasn't happened yet.
 import type {
-  AgentStatus, Approval, ArtifactType, Message, Reminder, SuggestionItem, Task, TaskResource,
+  AgentStatus, Approval, ArtifactType, DirectApp, EmailPayload, Message, Reminder, SuggestionItem, Task, TaskResource,
 } from "@/lib/shared/types";
 import { find, id, nowIso, patch, state, upsert } from "../store";
 import { SAMPLE } from "../fixtures";
@@ -12,7 +12,8 @@ import {
   requestApproval, say, system, taskPatch, taskResource, taskUpdate,
 } from "../engine/actions";
 import { renderDoc } from "../engine/artifacts";
-import { checkToolCall } from "../guardrails";
+import { checkToolCall, sensitiveData } from "../guardrails";
+import * as direct from "../direct";
 import { TOOLKITS, composioReady, isReadAction, realApps, runAction, searchActions, sendGmail } from "../composio";
 import * as browser from "../browser";
 import { locale } from "@/lib/i18n";
@@ -75,7 +76,7 @@ export const TOOLS: Tool[] = [
   // ── reading ──────────────────────────────────────────────────────────
   {
     name: "search_email",
-    sample: ["gmail"],
+    sample: ["gmail", "mailbox"],
     description: "Search the person's Gmail inbox. Empty query lists recent mail. Returns sender, subject, snippet, age and whether it needs a reply.",
     input_schema: obj({ query: S("Words to match in sender, subject or body. Empty for recent mail."), needs_reply_only: { type: "boolean" } }),
     status: "Searching your email",
@@ -185,14 +186,28 @@ export const TOOLS: Tool[] = [
   {
     name: "draft_email",
     description:
-      "Draft an email from the person's Gmail. Unless they've set sending to Always, this shows an approval card and nothing is sent until they tap Send. Never say it was sent unless this tool says so.",
-    input_schema: obj({ to: S("Recipient email address."), cc: S("Optional CC."), subject: S("Subject line."), body: S("Plain-text body, signed with the person's first name.") }, ["to", "subject", "body"]),
+      "Draft an email from the person's Gmail or their connected mailbox (QQ Mail, 163…). Unless they've set sending to Always, this shows an approval card and nothing is sent until they tap Send. Never say it was sent unless this tool says so.",
+    input_schema: obj({
+      to: S("Recipient email address."), cc: S("Optional CC."), subject: S("Subject line."), body: S("Plain-text body, signed with the person's first name."),
+      from_app: { type: "string", enum: ["gmail", "mailbox"], description: "Which account sends it. Defaults to the connected mailbox when there's one and Gmail isn't really connected." },
+    }, ["to", "subject", "body"]),
     status: "Writing a draft",
-    app: "gmail",
-    run: async ({ to, cc, subject, body }, ctx) => {
-      const email = { app: "gmail" as const, to: str(to), cc: str(cc) || undefined, subject: str(subject), body: str(body) };
-      if (toolMode("gmail", "GMAIL_SEND_EMAIL") === "always") {
-        if (realApps().includes("gmail")) {
+    run: async ({ to, cc, subject, body, from_app }, ctx) => {
+      const mailbox = direct.ready("mailbox");
+      const via = from_app === "mailbox" || from_app === "gmail" ? from_app : mailbox && !realApps().includes("gmail") ? "mailbox" : "gmail";
+      if (via === "mailbox" && !mailbox) return "The mailbox isn't connected. Tell the person they can connect QQ Mail or another mailbox from the Cloud Duet sheet.";
+      if (via === "gmail" && !connected("gmail")) return "Gmail isn't connected. Tell the person they can connect it from the Cloud Duet sheet (tap Cloud Duet at the top of the chat), then try again.";
+      const email = { app: via, from: via === "mailbox" ? direct.creds("mailbox")?.email : undefined, to: str(to), cc: str(cc) || undefined, subject: str(subject), body: str(body) } as EmailPayload;
+      const blocked = sensitiveData(email);
+      if (blocked) return blocked;
+      if (toolMode(via, via === "mailbox" ? "MAILBOX_SEND" : "GMAIL_SEND_EMAIL") === "always") {
+        if (via === "mailbox") {
+          try {
+            await direct.run("mailbox", "send", email as unknown as Record<string, unknown>);
+          } catch (e) {
+            return `The mailbox couldn't send it: ${(e as Error).message}`;
+          }
+        } else if (realApps().includes("gmail")) {
           const r = await sendGmail(email);
           if (!r.ok) return `Gmail couldn't send it: ${r.error ?? "unknown error"}`;
         }
@@ -310,6 +325,88 @@ export const TOOLS: Tool[] = [
       }, { taskId: ctx.taskId });
       return "Approval card shown. It has NOT run yet; you'll hear the outcome after they decide. Don't claim it's done.";
     },
+  },
+
+  // ── direct apps: mailbox, Feishu, DingTalk, WeCom ────────────────────
+  {
+    name: "mailbox_list",
+    description: "List or search the person's connected mailbox (QQ Mail, 163, Exmail…), newest first. Returns uid, from, subject, date and unread.",
+    input_schema: obj({
+      query: S("Words to match in subject, sender or body. Empty for the latest mail."),
+      unread_only: { type: "boolean" },
+      limit: { type: "number", description: "Up to 25, default 10." },
+      folder: S("IMAP folder, default INBOX. Use mailbox_folders to see the others."),
+    }),
+    status: "Searching your email",
+    app: "mailbox",
+    when: () => direct.ready("mailbox"),
+    run: (args) => directRead("mailbox", "list", args),
+  },
+  {
+    name: "mailbox_read",
+    description: "Read one message from the connected mailbox by uid, as plain text. Doesn't mark it read.",
+    input_schema: obj({ uid: { type: "number" }, folder: S("Default INBOX.") }, ["uid"]),
+    status: "Searching your email",
+    app: "mailbox",
+    when: () => direct.ready("mailbox"),
+    run: (args) => directRead("mailbox", "read", args),
+  },
+  {
+    name: "mailbox_folders",
+    description: "List the connected mailbox's folders (Sent, Drafts, Junk…).",
+    input_schema: obj({}),
+    status: "Searching your email",
+    app: "mailbox",
+    when: () => direct.ready("mailbox"),
+    run: () => directRead("mailbox", "folders", {}),
+  },
+  {
+    name: "feishu_list_chats",
+    description: "List the Feishu group chats Cloud Duet's Feishu bot is in, with their chat_id.",
+    input_schema: obj({}),
+    status: "Looking something up",
+    app: "feishu",
+    when: () => direct.ready("feishu") && !!direct.creds("feishu")?.appId,
+    run: () => directRead("feishu", "chats", {}),
+  },
+  {
+    name: "feishu_read_messages",
+    description: "Read the latest messages in a Feishu chat, newest first.",
+    input_schema: obj({ chat_id: S("From feishu_list_chats."), limit: { type: "number", description: "Up to 50, default 20." } }, ["chat_id"]),
+    status: "Looking something up",
+    app: "feishu",
+    when: () => direct.ready("feishu") && !!direct.creds("feishu")?.appId,
+    run: (args) => directRead("feishu", "messages", args),
+  },
+  {
+    name: "feishu_send_message",
+    description: "Send a Feishu message: to a chat by chat_id, to a colleague by work email, or (with neither) to the group bot's group. Shows an approval card first unless they've set it to Always.",
+    input_schema: obj({ text: S("The message."), chat_id: S("Optional chat_id."), email: S("Optional colleague's Feishu email.") }, ["text"]),
+    status: "Working on it",
+    app: "feishu",
+    when: () => direct.ready("feishu"),
+    run: async (args, ctx) => {
+      const where = str(args.chat_id) ? `chat ${str(args.chat_id)}` : str(args.email) || tr("Group bot");
+      return directWrite(ctx, "feishu", "FEISHU_SEND_MESSAGE", "send", { text: str(args.text), chat_id: str(args.chat_id) || undefined, email: str(args.email) || undefined }, tr("Send Feishu message to {to}", { to: where }));
+    },
+  },
+  {
+    name: "dingtalk_send_message",
+    description: "Post a text message to the person's DingTalk group through its bot. Shows an approval card first unless they've set it to Always.",
+    input_schema: obj({ text: S("The message. If the bot uses a keyword for security, include it.") }, ["text"]),
+    status: "Working on it",
+    app: "dingtalk",
+    when: () => direct.ready("dingtalk"),
+    run: (args, ctx) => directWrite(ctx, "dingtalk", "DINGTALK_SEND_MESSAGE", "send", { text: str(args.text) }, tr("Post to the DingTalk group")),
+  },
+  {
+    name: "wecom_send_message",
+    description: "Post a text message to the person's WeCom group through its bot. Shows an approval card first unless they've set it to Always.",
+    input_schema: obj({ text: S("The message.") }, ["text"]),
+    status: "Working on it",
+    app: "wecom",
+    when: () => direct.ready("wecom"),
+    run: (args, ctx) => directWrite(ctx, "wecom", "WECOM_SEND_MESSAGE", "send", { text: str(args.text) }, tr("Post to the WeCom group")),
   },
 
   // ── tasks ────────────────────────────────────────────────────────────
@@ -578,6 +675,39 @@ function nestedSlugs(args: Record<string, unknown>): string[] {
 
 const sensitive = (text: string) => checkToolCall("browser_type", text);
 
+async function directRead(app: DirectApp, op: string, args: Record<string, unknown>) {
+  try {
+    const text = JSON.stringify(await direct.run(app, op, args));
+    return text.length > 12000 ? `${text.slice(0, 12000)}… (truncated)` : text;
+  } catch (e) {
+    return `Error: ${(e as Error).message}`;
+  }
+}
+
+/** Sends right away when the person set this tool to Always, otherwise shows an approval card. */
+async function directWrite(ctx: ToolContext, app: DirectApp, slug: string, op: string, args: Record<string, unknown>, what: string) {
+  const blocked = sensitiveData(args);
+  if (blocked) return blocked;
+  if (!str(args.text).trim()) return "Error: the message is empty.";
+  if (toolMode(app, slug) === "always") {
+    try {
+      await direct.run(app, op, args);
+    } catch (e) {
+      return `It didn't go through: ${(e as Error).message}`;
+    }
+    system(ctx.channelId, tr("Cloud Duet: {what}.", { what }), "note", ctx.taskId);
+    return "Sent (the person allows this without asking).";
+  }
+  await requestApproval(ctx.channelId, "action", {
+    action: {
+      tool: what,
+      args: Object.entries(args).filter(([, v]) => v !== undefined && v !== "").map(([name, v]) => ({ name: name === "text" ? tr("Message") : name, value: str(v).slice(0, 4000) })),
+      exec: { kind: "direct", app, op, arguments: args },
+    },
+  }, { taskId: ctx.taskId });
+  return "Approval card shown. It has NOT been sent; you'll hear the outcome after they decide.";
+}
+
 async function view(ctx: ToolContext, show: boolean) {
   const v = await browser.look(ctx.taskId!);
   if (show) await card(ctx.channelId, { kind: "screenshot", url: v.url, caption: v.title || v.url, image: v.image }, { taskId: ctx.taskId, delay: 200 });
@@ -585,7 +715,7 @@ async function view(ctx: ToolContext, show: boolean) {
 }
 
 export function toolsFor(mode: "chat" | "task") {
-  const real = realApps();
+  const real = state().connectors.filter((c) => c.connected && c.real).map((c) => c.id);
   return TOOLS.filter((t) => (!t.scope || t.scope === mode) && (!t.when || t.when()) && !t.sample?.some((a) => real.includes(a)));
 }
 

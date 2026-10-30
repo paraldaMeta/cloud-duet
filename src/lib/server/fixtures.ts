@@ -38,6 +38,30 @@ function connectors(email: string, t: Tr): Connector[] {
       tools: [read("GDRIVE_SEARCH", "Search files"), read("GDRIVE_READ", "Read file"), write("GDRIVE_CREATE", "Create file"), write("GDRIVE_SHARE", "Share file")],
     },
     {
+      id: "mailbox", name: t("QQ Mail / 163 and more"), category: "mail", direct: true,
+      description: t("Read, search and send from QQ Mail, NetEase 163/126, Sina, Aliyun, Tencent Exmail and any IMAP mailbox."),
+      connected: false, accounts: [],
+      tools: [read("MAILBOX_LIST", "List and search mail"), read("MAILBOX_READ", "Read email"), write("MAILBOX_SEND", "Send email")],
+    },
+    {
+      id: "feishu", name: t("Feishu"), category: "chat", direct: true,
+      description: t("Read and reply in Feishu chats, message colleagues, or post to a group."),
+      connected: false, accounts: [],
+      tools: [read("FEISHU_LIST_CHATS", "List group chats"), read("FEISHU_READ_MESSAGES", "Read messages"), write("FEISHU_SEND_MESSAGE", "Send message")],
+    },
+    {
+      id: "dingtalk", name: t("DingTalk"), category: "chat", direct: true,
+      description: t("Post updates and reminders to a DingTalk group."),
+      connected: false, accounts: [],
+      tools: [write("DINGTALK_SEND_MESSAGE", "Post to the group")],
+    },
+    {
+      id: "wecom", name: t("WeCom"), category: "chat", direct: true,
+      description: t("Post updates and reminders to a WeCom group."),
+      connected: false, accounts: [],
+      tools: [write("WECOM_SEND_MESSAGE", "Post to the group")],
+    },
+    {
       id: "slack", name: "Slack", category: "chat", description: t("Catch up on channels and DMs, and reply."),
       connected: false, accounts: [],
       tools: [read("SLACK_SEARCH", "Search messages"), read("SLACK_LIST_UNREADS", "List unreads"), write("SLACK_SEND_MESSAGE", "Send message")],

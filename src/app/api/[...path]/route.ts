@@ -4,6 +4,7 @@ import { asAccount } from "@/lib/server/http";
 import { mayUseEnvKeys, publicOrigin } from "@/lib/server/auth";
 import { TOOLKITS, composioReady, connectUrl, disconnect, syncConnections } from "@/lib/server/composio";
 import { services, setKeys } from "@/lib/server/keys";
+import { form as directForm, isDirect, remove as removeDirect, save as saveDirect } from "@/lib/server/direct";
 import { addSubscription, removeSubscription, sendPush, vapidPublicKey } from "@/lib/server/push";
 import { currentUserId } from "@/lib/server/context";
 import { fileMeta, isImage, isPdf, MAX_FILE_BYTES, readFile, saveFile } from "@/lib/server/files";
@@ -57,6 +58,7 @@ async function get(req: Request, ctx: Ctx) {
   }
   if (a === "model") return ok(publicConfig());
   if (a === "services") return ok({ services: services() });
+  if (a === "direct" && b && isDirect(b)) return ok(directForm(b));
   if (a === "push" && b === "key") return ok({ key: vapidPublicKey() });
   if (a === "connectors" && c === "callback") {
     await syncConnections().catch(() => []);
@@ -85,8 +87,15 @@ async function get(req: Request, ctx: Ctx) {
 }
 
 async function put(req: Request, ctx: Ctx) {
-  const [a] = (await ctx.params).path;
+  const [a, b] = (await ctx.params).path;
   const d = await body(req);
+  if (a === "direct" && b && isDirect(b)) {
+    try {
+      return ok(await saveDirect(b, d));
+    } catch (e) {
+      return Response.json({ error: (e as Error).message }, { status: 400 });
+    }
+  }
   if (a === "model") {
     const next: Record<string, string> = {};
     if (d.provider === "anthropic" || d.provider === "openai") next.provider = d.provider as ProviderKind;
@@ -115,7 +124,11 @@ async function put(req: Request, ctx: Ctx) {
 }
 
 async function del(req: Request, ctx: Ctx) {
-  const [a] = (await ctx.params).path;
+  const [a, b] = (await ctx.params).path;
+  if (a === "direct" && b && isDirect(b)) {
+    removeDirect(b);
+    return ok(directForm(b));
+  }
   if (a === "model") {
     writeConfig({ apiKey: "" });
     return ok(publicConfig());
@@ -186,6 +199,11 @@ async function patchRoute(req: Request, ctx: Ctx) {
       const c = find<Connector>("connectors", b);
       if (!c) return bad("Not found", 404);
       const next = { ...c };
+      if (typeof d.connected === "boolean" && isDirect(c.id)) {
+        if (d.connected) return bad("Fill in the form to connect this app.");
+        removeDirect(c.id);
+        return ok(find<Connector>("connectors", c.id));
+      }
       if (typeof d.connected === "boolean") {
         if (!d.connected && c.real) {
           await disconnect(c.id).catch(() => {});
@@ -366,6 +384,7 @@ async function post(req: Request, ctx: Ctx) {
       return ok();
     case "connectors": {
       if (c === "connect") {
+        if (isDirect(b)) return bad("Fill in the form to connect this app.");
         if (composioReady() && TOOLKITS[b]) return ok({ url: await connectUrl(b, `${publicOrigin(req)}/api/connectors/${b}/callback`) });
         const conn = find<Connector>("connectors", b);
         if (!conn) return bad("Not found", 404);

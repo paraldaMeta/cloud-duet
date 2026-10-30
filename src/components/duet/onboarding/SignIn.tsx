@@ -47,6 +47,24 @@ export function LangSwitch({ className }: { className?: string }) {
 
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+const PROVIDER_NAMES = { google: "Google", apple: "Apple", qq: "QQ", wechat: "WeChat", feishu: "Feishu", dingtalk: "DingTalk" } as const;
+
+const CN = [
+  { id: "wechat", color: "#07C160", glyph: <WeChatGlyph /> },
+  { id: "qq", color: "#12B7F5", glyph: "QQ" },
+  { id: "feishu", color: "#3370FF", glyph: "飞" },
+  { id: "dingtalk", color: "#0089FF", glyph: "钉" },
+] as const;
+
+function WeChatGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden>
+      <path d="M9.2 4C5.2 4 2 6.7 2 10c0 1.9 1 3.6 2.7 4.7L4 17l2.6-1.3c.8.2 1.7.4 2.6.4h.6a5.6 5.6 0 0 1-.2-1.5c0-3.2 3.1-5.8 7-5.8h.5C16.4 6.2 13.1 4 9.2 4zM6.8 8.9a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8zm4.8 0a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8z" />
+      <path d="M22 14.6c0-2.8-2.7-5-6-5s-6 2.2-6 5 2.7 5 6 5c.7 0 1.4-.1 2-.3L20 20.4l-.5-1.9c1.5-.9 2.5-2.3 2.5-3.9zm-8-1a.8.8 0 1 1 0-1.6.8.8 0 0 1 0 1.6zm4 0a.8.8 0 1 1 0-1.6.8.8 0 0 1 0 1.6z" />
+    </svg>
+  );
+}
+
 export function SignIn() {
   const providers = useDuet((s) => s.providers);
   const t = useT();
@@ -58,9 +76,9 @@ export function SignIn() {
     typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("authError"),
   );
 
-  const oauth = (provider: "google" | "apple") => {
+  const oauth = (provider: keyof typeof providers) => {
     if (!providers[provider]) {
-      setError(tr("{provider} sign-in isn't set up on this server yet. Use your email for now.", { provider: provider === "google" ? "Google" : "Apple" }));
+      setError(tr("{provider} sign-in isn't set up on this server yet. Use your email for now.", { provider: tr(PROVIDER_NAMES[provider]) }));
       return;
     }
     setBusy(provider);
@@ -125,6 +143,22 @@ export function SignIn() {
             {busy === "apple" ? <span className="size-4 animate-spin rounded-full border-2 border-[#141413] border-t-transparent" /> : <Apple />}
             {t("Continue with Apple")}
           </button>
+          <div className="mt-1 grid grid-cols-4 gap-2" role="group" aria-label={t("More ways to sign in")}>
+            {CN.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                disabled={!!busy}
+                onClick={() => oauth(p.id)}
+                className="flex flex-col items-center gap-1.5 rounded-2xl py-1.5 transition-transform active:scale-95 disabled:opacity-60"
+              >
+                <span className="grid size-11 place-items-center rounded-full text-[15px] font-bold text-white shadow-[0_1px_3px_rgb(0_0_0/0.12)]" style={{ background: p.color }}>
+                  {busy === p.id ? <span className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : p.glyph}
+                </span>
+                <span className="text-[12.5px] text-[#3D3D3A]">{t(PROVIDER_NAMES[p.id])}</span>
+              </button>
+            ))}
+          </div>
           <div className="my-2 flex items-center gap-3 text-[12px] text-[#8A8985]">
             <span className="h-px flex-1 bg-[#E3E3E3]" />
             {t("or")}

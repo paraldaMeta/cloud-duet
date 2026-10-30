@@ -99,9 +99,12 @@ function EmailCard({ a }: { a: Approval }) {
       <Shell>
         <div className="flex items-center gap-2">
           <span className="grid size-7 place-items-center rounded-lg border border-hair bg-white">
-            {e.app === "slack" ? <AppLogo id="slack" size={16} /> : <GmailLogo size={16} />}
+            {e.app === "gmail" ? <GmailLogo size={16} /> : <AppLogo id={e.app} size={16} />}
           </span>
-          <span className="text-[15px] font-semibold">{e.app === "slack" ? t("Slack message") : t("Email")}</span>
+          <span className="min-w-0 truncate text-[15px] font-semibold">
+            {e.app === "slack" ? t("Slack message") : t("Email")}
+            {e.from && <span className="ml-1.5 text-[13px] font-normal text-ink-2">{t("from {from}", { from: e.from })}</span>}
+          </span>
           <span className="flex-1" />
           <button type="button" aria-label={t("Copy")} className="grid size-8 place-items-center rounded-full text-ink-2 hover:bg-black/5" onClick={() => navigator.clipboard?.writeText(e.body).then(() => toast(tt("Copied")))}>
             <Copy size={17} />

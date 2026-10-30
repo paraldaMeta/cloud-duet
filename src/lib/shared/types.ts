@@ -128,7 +128,10 @@ export interface Message {
 export type ApprovalKind = "email" | "payment" | "sign" | "delete" | "action";
 
 export interface EmailPayload {
-  app: "gmail" | "slack";
+  /** "mailbox" is a mailbox connected over IMAP/SMTP (QQ Mail, 163 and the like). */
+  app: "gmail" | "slack" | "mailbox";
+  /** The address it's sent from, when known. */
+  from?: string;
   to: string;
   cc?: string;
   subject: string;
@@ -156,7 +159,37 @@ export interface ActionPayload {
   tool: string;
   args: { name: string; value: string }[];
   /** What runs on approval. Kept server-side in meaning; the card only shows tool and args. */
-  exec?: { kind: "composio"; slug: string; arguments: Record<string, unknown> } | { kind: "browser"; ref: string };
+  exec?:
+    | { kind: "composio"; slug: string; arguments: Record<string, unknown> }
+    | { kind: "browser"; ref: string }
+    | { kind: "direct"; app: DirectApp; op: string; arguments: Record<string, unknown> };
+}
+
+/** Apps Cloud Duet talks to directly with credentials the person enters, no Composio. */
+export type DirectApp = "mailbox" | "feishu" | "dingtalk" | "wecom";
+
+export interface DirectField {
+  key: string;
+  label: string;
+  type: "text" | "email" | "password" | "url" | "number" | "select";
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  help?: string;
+  optional?: boolean;
+  /** Only shown when another field has this value. */
+  showIf?: { key: string; value: string };
+}
+
+/** The setup form for a direct app. Secrets come back as hints, never values. */
+export interface DirectForm {
+  id: DirectApp;
+  intro: string;
+  fields: DirectField[];
+  links: { label: string; url: string }[];
+  values: Record<string, string>;
+  /** Secret fields that are saved, with their last four characters. */
+  saved: Record<string, string>;
+  configured: boolean;
 }
 
 export interface Approval {
@@ -295,6 +328,8 @@ export interface Connector {
   connected: boolean;
   /** Connected to the person's real account through Composio, not the sample workspace. */
   real?: boolean;
+  /** Set up with a form in the app (address and auth code, app credentials, a webhook) instead of Composio. */
+  direct?: boolean;
   accounts: string[];
   tools: ToolPolicy[];
 }

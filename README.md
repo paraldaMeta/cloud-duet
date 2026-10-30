@@ -1,6 +1,6 @@
 # Cloud Duet
 
-**中文** · 一个开源的主动式工作助手：每天给你简报，在后台替你干活，发邮件、付款、提交表单之前一定先问你。界面默认中文，可在「资料 → 语言」切换成 English。
+**中文** · 一个开源的主动式工作助手：每天给你简报，在后台替你干活，发邮件、付款、提交表单之前一定先问你。界面默认中文，可在「资料 → 语言」切换成 English。支持 QQ、微信、飞书、钉钉登录，并可直接连接 QQ 邮箱 / 163 等邮箱、飞书、钉钉和企业微信。
 
 **English** · An open-source proactive work agent for the web. It briefs you, works in the background and always asks before it sends, pays or submits anything. The UI defaults to Simplified Chinese; switch to English under Profile → Language.
 
@@ -34,9 +34,18 @@ The first account to sign in owns the server. Keys in `.env.local` only work for
 | Browserbase | Cloud browser with a live view link | [browserbase.com/settings](https://www.browserbase.com/settings) | Keys & services, or `BROWSERBASE_API_KEY` + `BROWSERBASE_PROJECT_ID` |
 | Google sign-in | "Continue with Google" | [Google Cloud credentials](https://console.cloud.google.com/apis/credentials) (Web application, redirect `<origin>/api/auth/google/callback`) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 | Apple sign-in | "Continue with Apple" | [Services ID](https://developer.apple.com/account/resources/identifiers/list/serviceId) + [key](https://developer.apple.com/account/resources/authkeys/list) (paid developer account, return URL `<origin>/api/auth/apple/callback`) | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` |
+| QQ sign-in | QQ button on sign-in | [QQ Connect](https://connect.qq.com/manage.html) website app (ICP-registered domain, callback `<origin>/api/auth/qq/callback`) | `QQ_APP_ID`, `QQ_APP_KEY` |
+| WeChat sign-in | WeChat QR-code sign-in | [WeChat Open Platform](https://open.weixin.qq.com/) verified website app (authorized domain = your host) | `WECHAT_APP_ID`, `WECHAT_APP_SECRET` |
+| Feishu sign-in | Feishu button on sign-in | [Feishu Open Platform](https://open.feishu.cn/app) custom app, redirect `<origin>/api/auth/feishu/callback` | `FEISHU_APP_ID`, `FEISHU_APP_SECRET` |
+| DingTalk sign-in | DingTalk button on sign-in | [DingTalk Open Platform](https://open-dev.dingtalk.com/) app, callback `<origin>/api/auth/dingtalk/callback` | `DINGTALK_CLIENT_ID`, `DINGTALK_CLIENT_SECRET` |
 | Push notifications | System notifications on desktop and phone | Nothing: VAPID keys are generated into `data/vapid.json` | Profile → Notifications |
 
 - **Connectors.** With Composio set, tapping Connect on an app opens its real OAuth page and returns to `/api/connectors/<id>/callback`. Connected apps show "Your real account"; the model gets `app_find_actions` / `app_run_action` for them, and the sample tools for that app step aside. Anything that writes (send, create, delete…) goes through an approval card first. Without Composio, Connect links the sample data.
+- **Apps popular in China (国内常用).** These need no Composio and no server setting: each person fills in a form on the connector page (tap the mascot → 国内常用). Saving tests the connection first; credentials stay in `data/users/<id>/direct.json` (mode 600) and only their last four characters are ever shown again.
+  - **QQ 邮箱 / 163 等**: the address plus an *auth code* (授权码, not the login password) from the mailbox's POP3/IMAP/SMTP settings. Servers are filled in for QQ Mail, NetEase 163/126/yeah, Tencent Exmail, NetEase Qiye, Aliyun, Sina, Sohu, 139, iCloud and Gmail app passwords; anything else can be entered by hand. The model gets `mailbox_list`, `mailbox_read` and `mailbox_folders`, and `draft_email` sends from this mailbox.
+  - **飞书 Feishu**: a custom app's App ID and App Secret (bot feature plus `im:message` and `im:chat` permissions) lets the model list the bot's chats, read them and send messages; a custom group bot webhook (with optional signing secret) posts to one group.
+  - **钉钉 DingTalk** and **企业微信 WeCom**: a group bot webhook (DingTalk with the optional 加签 secret) for posting updates and reminders.
+  - Every send shows an approval card unless the person sets that tool to Always.
 - **The built-in browser.** Browser tasks drive a real Chrome through Playwright: Browserbase when its key is set, otherwise Chrome on this server (`CHROME_PATH`). The model reads pages as numbered controls, posts screenshots to the task, asks for logins with the sign-in card (the password is typed into the page and never stored or shown to the model) and clicks final submit buttons only after approval. Idle browsers close after 15 minutes.
 - **Files.** The + menu (or paste) uploads files up to 15 MB into `data/users/<id>/files/`. Images and PDFs go to the model as real content; text files go in as text. Only the four most recent attachments are sent in full.
 - **Share links.** Share on a dashboard creates a read-only public link at `/s/<token>` (no sign-in, not indexed, sandboxed by a strict CSP). Tokens live in `data/shares.json`; unsharing revokes them.
@@ -78,6 +87,8 @@ With a key set, chat replies, task threads and started suggestions run through a
 | `request_payment` | A Link payment approval (test mode by default). |
 | `use_browser` | Starts a browser task, which gets `browser_open`, `browser_look`, `browser_click`, `browser_type`, `browser_scroll`, `browser_request_login` and `browser_submit`. |
 | `app_find_actions`, `app_run_action` | Real connected apps through Composio; writes need approval. |
+| `mailbox_list`, `mailbox_read`, `mailbox_folders` | The connected QQ / 163 / IMAP mailbox. |
+| `feishu_list_chats`, `feishu_read_messages`, `feishu_send_message`, `dingtalk_send_message`, `wecom_send_message` | Feishu, DingTalk and WeCom; sends need approval. |
 | `start_task` | A background task that runs its own loop with `set_steps`, `update_progress`, `add_link` and `finish_task`. |
 | `make_artifact` | Docs written by the model in markdown, or dashboards, decks, pages and designs. |
 | `propose_task`, `suggest_tasks`, `quick_replies` | Cards and tappable replies. |

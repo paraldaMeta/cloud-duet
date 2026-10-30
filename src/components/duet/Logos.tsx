@@ -92,6 +92,14 @@ export function AppLogo({ id, size = 18 }: { id: string; size?: number }) {
       return <Tile bg="#FF7A59" size={size}>H</Tile>;
     case "linkedin":
       return <Tile bg="#0A66C2" size={size}>in</Tile>;
+    case "mailbox":
+      return <Tile bg="#1E6FFF" size={size}>邮</Tile>;
+    case "feishu":
+      return <Tile bg="#3370FF" size={size}>飞</Tile>;
+    case "dingtalk":
+      return <Tile bg="#0089FF" size={size}>钉</Tile>;
+    case "wecom":
+      return <Tile bg="#0082EF" size={size}>企</Tile>;
     case "figma":
       return <Tile bg="#1E1E1E" size={size}>F</Tile>;
     default:

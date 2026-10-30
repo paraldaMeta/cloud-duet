@@ -6,6 +6,7 @@ import { mayUseEnvKeys, providers } from "./auth";
 import { readConfig } from "./engine/provider";
 import { pushCount } from "./push";
 import { tr } from "./i18n";
+import { CN_PROVIDERS, cnEnv, cnName, type CnProvider } from "./oauth-cn";
 
 export type ServiceKey = "composio" | "browserbase" | "browserbaseProject";
 
@@ -30,6 +31,20 @@ export function setKeys(next: Partial<Record<ServiceKey, string>>) {
 }
 
 const hint = (v: string) => (v ? `…${v.slice(-4)}` : "");
+
+const CN_WHAT: Record<CnProvider, string> = {
+  qq: "Server setting. Needs a website app on QQ Connect, which asks for an ICP-registered domain.",
+  wechat: "Server setting. Needs a verified website app on the WeChat Open Platform; people scan a QR code.",
+  feishu: "Server setting. Needs a custom app on the Feishu Open Platform with web sign-in turned on.",
+  dingtalk: "Server setting. Needs an app on the DingTalk Open Platform with sign-in turned on.",
+};
+
+const CN_LINKS: Record<CnProvider, { label: string; url: string }[]> = {
+  qq: [{ label: "QQ Connect", url: "https://connect.qq.com/manage.html" }],
+  wechat: [{ label: "WeChat Open Platform", url: "https://open.weixin.qq.com/" }],
+  feishu: [{ label: "Feishu Open Platform", url: "https://open.feishu.cn/app" }],
+  dingtalk: [{ label: "DingTalk Open Platform", url: "https://open-dev.dingtalk.com/" }],
+};
 
 /** Every outside service, whether it's set up, and where to get its key. */
 export function services() {
@@ -67,6 +82,10 @@ export function services() {
         { label: tr("Create a Sign in with Apple key"), url: "https://developer.apple.com/account/resources/authkeys/list" },
       ],
     },
+    ...CN_PROVIDERS.map((id) => ({
+      id, name: tr("Sign in with {provider}", { provider: cnName(id) }), what: tr(CN_WHAT[id]),
+      ready: p[id], editable: "env" as const, env: cnEnv(id), links: CN_LINKS[id].map((l) => ({ ...l, label: tr(l.label) })),
+    })),
     {
       id: "push", name: tr("Push notifications"), what: tr("Built in, no key needed. On iPhone, add Duet to your Home Screen first."),
       ready: pushCount() > 0, editable: "none" as const, detail: pushCount() ? tr(pushCount() > 1 ? "{n} devices" : "{n} device", { n: pushCount() }) : tr("Not turned on"),

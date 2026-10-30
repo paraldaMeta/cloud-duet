@@ -6,6 +6,7 @@ import { nextBriefAt, nextCheckinAt } from "../fixtures";
 import { createTask, markSeen, postUser, readyForReview, say, status, system, taskPatch, taskUpdate } from "./actions";
 import { realApps, runAction, sendGmail } from "../composio";
 import * as browser from "../browser";
+import * as direct from "../direct";
 import * as demo from "./demo";
 import { isLive } from "./provider";
 import { tr } from "../i18n";
@@ -101,6 +102,10 @@ export async function resolveApproval(approvalId: string, approve: boolean) {
 async function carryOut(a: Approval): Promise<string | undefined> {
   status(a.channelId, "Working on it", a.taskId);
   try {
+    if (a.kind === "email" && a.email?.app === "mailbox") {
+      await direct.run("mailbox", "send", a.email as unknown as Record<string, unknown>);
+      return tr("Approved: sent the email to {to} from {from}.", { to: a.email.to, from: a.email.from ?? tr("your mailbox") });
+    }
     if (a.kind === "email" && a.email && realApps().includes("gmail")) {
       const r = await sendGmail(a.email);
       return r.ok ? tr("Approved: sent the email to {to} from your Gmail.", { to: a.email.to }) : tr("Gmail couldn't send it: {error}", { error: r.error ?? tr("unknown error") });
@@ -109,6 +114,10 @@ async function carryOut(a: Approval): Promise<string | undefined> {
     if (exec?.kind === "composio") {
       const r = await runAction(exec.slug, exec.arguments);
       return r.ok ? tr("Approved: done — {what}.", { what: a.action!.tool }) : tr("{tool} failed: {error}", { tool: a.action!.tool, error: r.error ?? tr("unknown error") });
+    }
+    if (exec?.kind === "direct") {
+      await direct.run(exec.app, exec.op, exec.arguments);
+      return tr("Approved: done — {what}.", { what: a.action!.tool });
     }
     if (exec?.kind === "browser" && a.taskId) {
       await browser.click(a.taskId, exec.ref);

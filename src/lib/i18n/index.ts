@@ -2,6 +2,7 @@
 // English text. A missing entry falls back to the English, so untranslated
 // copy still reads fine. Placeholders use {name}.
 import { chat } from "./zh/chat";
+import { china } from "./zh/china";
 import { server } from "./zh/server";
 import { server2 } from "./zh/server2";
 import { sheets } from "./zh/sheets";
@@ -15,7 +16,7 @@ export const LANGS: { id: Lang; label: string }[] = [
 ];
 export const DEFAULT_LANG: Lang = "zh";
 
-const zh: Record<string, string> = { ...shell, ...chat, ...work, ...sheets, ...server, ...server2 };
+const zh: Record<string, string> = { ...shell, ...chat, ...work, ...sheets, ...server, ...server2, ...china };
 
 export type Vars = Record<string, string | number>;
 

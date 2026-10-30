@@ -4,13 +4,14 @@
 // cookie; the session id must still be on the account, so signing out ends it.
 import fs from "node:fs";
 import path from "node:path";
-import { createHmac, createPrivateKey, randomBytes, randomUUID, scrypt, sign as cryptoSign, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, createPrivateKey, randomBytes, randomUUID, scrypt, sign as cryptoSign, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { currentUserId, DATA_DIR, runAs, userDir } from "./context";
 import { readJson, writeJson } from "./fsx";
 import { defaultConnectors } from "./fixtures";
 import { set, state, upsert } from "./store";
 import { tr } from "./i18n";
+import { CN_PROVIDERS, cnConfigured, type CnProvider } from "./oauth-cn";
 
 export interface Account {
   id: string;
@@ -19,6 +20,10 @@ export interface Account {
   password?: { salt: string; hash: string };
   googleSub?: string;
   appleSub?: string;
+  qqSub?: string;
+  wechatSub?: string;
+  feishuSub?: string;
+  dingtalkSub?: string;
   createdAt: string;
   /** The first account owns the server: it may use keys set in the environment. */
   owner?: boolean;
@@ -59,6 +64,16 @@ export function mayUseEnvKeys(): boolean {
   if (a.owner) return true;
   const shared = (process.env.SHARED_KEYS_FOR ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   return shared.includes("*") || shared.includes(a.email);
+}
+
+/** Whether the signed-in account is the server's owner. */
+export function isOwner(): boolean {
+  try {
+    const uid = currentUserId();
+    return !!accounts().find((x) => x.id === uid)?.owner;
+  } catch {
+    return false;
+  }
 }
 
 /** New accounts after the first need ALLOW_SIGNUP not set to false, and an email on ALLOWED_EMAILS when that's set. */
@@ -235,8 +250,8 @@ export async function emailSignIn(email: string, password: string, name: string 
  * the same email is only linked when the provider verified the email and the
  * account has no password, so nobody can pre-register someone else's address.
  */
-export function oauthSignIn(provider: "google" | "apple", sub: string, email: string, verified: boolean, name?: string): Account {
-  const key = provider === "google" ? "googleSub" : "appleSub";
+export function oauthSignIn(provider: "google" | "apple" | CnProvider, sub: string, email: string, verified: boolean, name?: string): Account {
+  const key = `${provider}Sub` as const;
   const list = accounts();
   const e = verified ? email.trim().toLowerCase() : "";
   const byId = list.find((a) => a[key] === sub);
@@ -248,7 +263,7 @@ export function oauthSignIn(provider: "google" | "apple", sub: string, email: st
     saveAccounts(list);
     return byEmail;
   }
-  const newEmail = e || `${sub.slice(0, 8)}@${provider}.user`;
+  const newEmail = e || `${createHash("sha256").update(sub).digest("hex").slice(0, 16)}@${provider}.user`;
   if (!signupAllowed(newEmail, list)) throw new Error(tr("New accounts aren't open on this server."));
   return createAccount({ email: newEmail, name: name?.trim().slice(0, 80) || nameFromEmail(e || "friend"), [key]: sub });
 }
@@ -288,6 +303,7 @@ export function touchWorkspace(account: Account, timezone?: string) {
 export const providers = () => ({
   google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
   apple: !!(process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY),
+  ...(Object.fromEntries(CN_PROVIDERS.map((p) => [p, cnConfigured(p)])) as Record<CnProvider, boolean>),
 });
 
 export const newState = () => randomBytes(16).toString("hex");

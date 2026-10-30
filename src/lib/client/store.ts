@@ -24,7 +24,7 @@ interface Ui {
   data: AppState | null;
   /** "out" shows the sign-in screen. */
   auth: "unknown" | "in" | "out";
-  providers: { google: boolean; apple: boolean };
+  providers: Record<"google" | "apple" | "qq" | "wechat" | "feishu" | "dingtalk", boolean>;
   connected: boolean;
   tab: Tab;
   channelId: string;
@@ -60,7 +60,7 @@ const VIEW = {
 export const useDuet = create<Ui>((set, get) => ({
   data: null,
   auth: "unknown",
-  providers: { google: false, apple: false },
+  providers: { google: false, apple: false, qq: false, wechat: false, feishu: false, dingtalk: false },
   connected: true,
   tab: "chat",
   channelId: "main",

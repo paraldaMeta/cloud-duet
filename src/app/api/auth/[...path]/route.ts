@@ -7,6 +7,7 @@ import { runAs } from "@/lib/server/context";
 import { ensureStarted } from "@/lib/server/engine";
 import { syncEngine } from "@/lib/server/engine/provider";
 import { tr } from "@/lib/server/i18n";
+import { cnAuthUrl, cnConfigured, cnExchange, cnName, isCnProvider } from "@/lib/server/oauth-cn";
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
@@ -49,6 +50,22 @@ export async function GET(req: Request, ctx: Ctx) {
     try {
       const p = await googleExchange(origin, url.searchParams.get("code")!);
       return signedIn(req, oauthSignIn("google", p.sub, p.email, p.verified, p.name), undefined, `${origin}/`);
+    } catch (e) {
+      return fail(req, (e as Error).message);
+    }
+  }
+  if (isCnProvider(a) && !b) {
+    if (!cnConfigured(a)) return fail(req, tr("{provider} sign-in isn't set up on this server yet. Use your email for now.", { provider: cnName(a) }));
+    const st = newState();
+    return startOAuth(req, cnAuthUrl(a, origin, st), st);
+  }
+  if (isCnProvider(a) && b === "callback") {
+    // DingTalk names the code authCode.
+    const code = url.searchParams.get("code") || url.searchParams.get("authCode");
+    if (!code || url.searchParams.get("state") !== readCookie(req, STATE_COOKIE)) return fail(req, tr("{provider} sign-in was cancelled.", { provider: cnName(a) }));
+    try {
+      const p = await cnExchange(a, origin, code);
+      return signedIn(req, oauthSignIn(a, p.sub, p.email, false, p.name), undefined, `${origin}/`);
     } catch (e) {
       return fail(req, (e as Error).message);
     }
