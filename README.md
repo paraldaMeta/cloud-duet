@@ -8,8 +8,6 @@
 
 项目不内置任何密钥，均在应用内或 `.env.local` 中自行填写。
 
-> 灵感来自 Anthropic Claude Duet 研究预览。独立项目，与 Anthropic 无隶属或背书关系。「Claude」为 Anthropic 商标。
-
 <p align="center">
   <img src="docs/screenshots/chat.png" alt="聊天：简报、卡片与后台任务" width="360" />
 </p>
