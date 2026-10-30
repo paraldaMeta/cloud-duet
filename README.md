@@ -1,31 +1,31 @@
 # Cloud Duet
 
-**中文** · 一个开源的主动式工作助手：每天给你简报，在后台替你干活，发邮件、付款、提交表单之前一定先问你。界面默认中文，可在「资料 → 语言」切换成 English。支持 QQ、微信、飞书、钉钉登录；可直接连接 QQ 邮箱 / 163 等邮箱、飞书、钉钉、企业微信、语雀和微信通知（Server酱 / PushPlus）；模型一键切换 DeepSeek、通义千问、Kimi、智谱、豆包、硅基流动、MiniMax，联网搜索可用博查。
+开源的主动式 AI 工作助手：每天给你简报，在后台替你干活，发邮件、付款、提交表单之前一定先问你。界面默认简体中文，可在「资料 → 语言」切换为 English。
 
-**English** · An open-source proactive work agent for the web. It briefs you, works in the background and always asks before it sends, pays or submits anything. The UI defaults to Simplified Chinese; switch to English under Profile → Language.
+支持 QQ、微信、飞书、钉钉登录；可直连 QQ 邮箱 / 163 等邮箱、飞书、钉钉、企业微信、语雀与微信通知（Server酱 / PushPlus）；模型一键切换 DeepSeek、通义千问、Kimi、智谱、豆包、硅基流动、MiniMax，联网搜索可用博查。
 
-It covers onboarding, the chat / tasks / make tabs, approvals, channels, connectors and settings, with hand-built animations and interactions. It runs fully offline on a scripted **demo engine** with a fictional sample workspace (Northfield Studio). Plug in your own model key and a real model takes over, calling the app's tools itself. Add a Composio key and it works on your real Gmail, Calendar, Drive, Slack and more; the built-in browser and phone notifications work with no key at all.
+涵盖引导页、聊天 / 任务 / 制作、审批、频道、连接器与设置，动效与交互均为手工打磨。未配置密钥时可完全离线运行内置**演示引擎**（虚构样例工作区 Northfield Studio）。填入模型密钥后由真实模型接管并自行调用工具；配置 Composio 后可操作真实 Gmail、日历、Drive、Slack 等；内置浏览器与手机通知无需额外密钥。
 
-No keys are bundled. Every key is yours to add, in the app or in `.env.local`.
+项目不内置任何密钥，均在应用内或 `.env.local` 中自行填写。
 
-> Inspired by Anthropic's Claude Duet research preview. Independent project; not affiliated with or endorsed by Anthropic. "Claude" is a trademark of Anthropic.
+> 灵感来自 Anthropic Claude Duet 研究预览。独立项目，与 Anthropic 无隶属或背书关系。「Claude」为 Anthropic 商标。
 
 <p align="center">
-  <img src="docs/screenshots/onboarding-proactive.png" alt="Proactive briefing onboarding" width="280" />
-  <img src="docs/screenshots/onboarding-browser.png" alt="Browser automation onboarding" width="280" />
-  <img src="docs/screenshots/onboarding-integrations.png" alt="Integrations onboarding" width="280" />
+  <img src="docs/screenshots/onboarding-proactive.png" alt="引导：主动简报" width="280" />
+  <img src="docs/screenshots/onboarding-browser.png" alt="引导：浏览器代操作" width="280" />
+  <img src="docs/screenshots/onboarding-integrations.png" alt="引导：应用连接" width="280" />
 </p>
 
-## Run it
+## 快速开始
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the URL printed in the terminal. Port, host, and deployment are up to you—self-host locally, behind a reverse proxy, or on any platform that runs Node.
+终端会打印访问地址；端口、域名与部署方式由你自行决定，本地、反代或任意可运行 Node 的平台均可。
 
-Optional keys go in `.env.local` (see `.env.example`) or in the app under Profile → **Keys & services**.
+可选密钥写在 `.env.local`（见 `.env.example`），或在应用内「资料 → 密钥与服务」填写。
 
 Everyone signs in. Email + password works out of the box (a new email creates an account); Google and Apple appear once their OAuth clients are configured. Each account gets its own workspace in `data/users/<id>/` (git-ignored): state, model key, service keys and push subscriptions. The first account created inherits a pre-accounts `data/state.json`. Profile → **Reset demo workspace** starts over; long-press your initials (top right) to replay onboarding.
 
