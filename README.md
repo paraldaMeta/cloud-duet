@@ -10,12 +10,20 @@ No keys are bundled. Every key is yours to add, in the app or in `.env.local`.
 
 > Inspired by Anthropic's Claude Duet research preview. Independent project; not affiliated with or endorsed by Anthropic. "Claude" is a trademark of Anthropic.
 
+<p align="center">
+  <img src="docs/screenshots/onboarding-proactive.png" alt="Proactive briefing onboarding" width="280" />
+  <img src="docs/screenshots/onboarding-browser.png" alt="Browser automation onboarding" width="280" />
+  <img src="docs/screenshots/onboarding-integrations.png" alt="Integrations onboarding" width="280" />
+</p>
+
 ## Run it
 
 ```bash
 npm install
-npm run dev        # http://localhost:4317
+npm run dev
 ```
+
+Open the URL printed in the terminal. Port, host, and deployment are up to you—self-host locally, behind a reverse proxy, or on any platform that runs Node.
 
 Optional keys go in `.env.local` (see `.env.example`) or in the app under Profile → **Keys & services**.
 
