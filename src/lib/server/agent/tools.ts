@@ -14,6 +14,9 @@ import {
 import { renderDoc } from "../engine/artifacts";
 import { checkToolCall, sensitiveData } from "../guardrails";
 import * as direct from "../direct";
+import { webSearch } from "../direct/more";
+import { getKey } from "../keys";
+import { readConfig } from "../engine/provider";
 import { TOOLKITS, composioReady, isReadAction, realApps, runAction, searchActions, sendGmail } from "../composio";
 import * as browser from "../browser";
 import { locale } from "@/lib/i18n";
@@ -409,6 +412,69 @@ export const TOOLS: Tool[] = [
     run: (args, ctx) => directWrite(ctx, "wecom", "WECOM_SEND_MESSAGE", "send", { text: str(args.text) }, tr("Post to the WeCom group")),
   },
 
+  {
+    name: "wechat_notify",
+    description: "Send a message to the person's own WeChat (through Server酱 or PushPlus). For reminders, summaries or anything they asked to get on WeChat. Markdown is fine.",
+    input_schema: obj({ title: S("Short title."), text: S("The message, markdown allowed.") }, ["title", "text"]),
+    status: "Working on it",
+    app: "wxpush",
+    when: () => direct.ready("wxpush"),
+    run: (args, ctx) => directWrite(ctx, "wxpush", "WXPUSH_SEND", "send", { title: str(args.title), text: str(args.text) }, tr("Send to your WeChat: {title}", { title: str(args.title) })),
+  },
+  {
+    name: "yuque_search",
+    description: "Search the person's Yuque docs. Returns title, summary, namespace and slug.",
+    input_schema: obj({ query: S("Words to search for.") }, ["query"]),
+    status: "Checking recent files",
+    app: "yuque",
+    when: () => direct.ready("yuque"),
+    run: (args) => directRead("yuque", "search", args),
+  },
+  {
+    name: "yuque_list",
+    description: "List the person's Yuque knowledge bases, or the docs in one when namespace is given.",
+    input_schema: obj({ namespace: S("Knowledge base namespace like 'user/book'. Empty to list knowledge bases.") }),
+    status: "Checking recent files",
+    app: "yuque",
+    when: () => direct.ready("yuque"),
+    run: (args) => directRead("yuque", str(args.namespace) ? "docs" : "repos", args),
+  },
+  {
+    name: "yuque_read",
+    description: "Read one Yuque doc as markdown.",
+    input_schema: obj({ namespace: S("Knowledge base namespace."), slug: S("Doc slug.") }, ["namespace", "slug"]),
+    status: "Checking recent files",
+    app: "yuque",
+    when: () => direct.ready("yuque"),
+    run: (args) => directRead("yuque", "read", args),
+  },
+  {
+    name: "yuque_create_doc",
+    description: "Save a new markdown doc in one of the person's Yuque knowledge bases. Shows an approval card first unless they've set it to Always.",
+    input_schema: obj({ namespace: S("Knowledge base namespace."), title: S("Doc title."), body: S("Full markdown body.") }, ["namespace", "title", "body"]),
+    status: "Working on it",
+    app: "yuque",
+    when: () => direct.ready("yuque"),
+    run: (args, ctx) =>
+      directWrite(ctx, "yuque", "YUQUE_CREATE_DOC", "create", { namespace: str(args.namespace), title: str(args.title), text: str(args.body) }, tr("Create Yuque doc “{title}”", { title: str(args.title) })),
+  },
+  {
+    name: "search_web",
+    description: "Search the web for current information. Returns titles, links, dates and summaries. Cite the links you use.",
+    input_schema: obj({ query: S("What to search for, in the language the sources are likely in."), count: { type: "number", description: "Results, up to 10." } }, ["query"]),
+    status: "Looking something up",
+    when: () => !!searchService(),
+    run: async ({ query, count }) => {
+      const svc = searchService()!;
+      try {
+        const hits = await webSearch(svc, getKey(svc), str(query), Number(count) || 8);
+        return hits.length ? JSON.stringify(hits) : "No results.";
+      } catch (e) {
+        return `Error: ${(e as Error).message}`;
+      }
+    },
+  },
+
   // ── tasks ────────────────────────────────────────────────────────────
   {
     name: "start_task",
@@ -671,6 +737,13 @@ export const TOOLS: Tool[] = [
 function nestedSlugs(args: Record<string, unknown>): string[] {
   const list = Array.isArray(args.tools) ? args.tools : [];
   return list.map((t) => str((t as Record<string, unknown>)?.tool_slug ?? (t as Record<string, unknown>)?.slug)).filter(Boolean).slice(0, 10);
+}
+
+/** Bocha or Tavily, unless the model already searches on its own (Anthropic's API). */
+function searchService(): "bocha" | "tavily" | null {
+  const c = readConfig();
+  if (c.provider === "anthropic" && !c.baseURL) return null;
+  return getKey("bocha") ? "bocha" : getKey("tavily") ? "tavily" : null;
 }
 
 const sensitive = (text: string) => checkToolCall("browser_type", text);

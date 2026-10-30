@@ -62,6 +62,18 @@ function connectors(email: string, t: Tr): Connector[] {
       tools: [write("WECOM_SEND_MESSAGE", "Post to the group")],
     },
     {
+      id: "wxpush", name: t("WeChat notifications"), category: "chat", direct: true,
+      description: t("Send reminders and updates to your own WeChat through Server酱 or PushPlus."),
+      connected: false, accounts: [],
+      tools: [{ slug: "WXPUSH_SEND", name: t("Message my WeChat"), write: true, mode: "always" }],
+    },
+    {
+      id: "yuque", name: t("Yuque"), category: "files", direct: true,
+      description: t("Search and read your Yuque knowledge bases, and save docs there."),
+      connected: false, accounts: [],
+      tools: [read("YUQUE_SEARCH", "Search docs"), read("YUQUE_READ", "Read doc"), write("YUQUE_CREATE_DOC", "Create doc")],
+    },
+    {
       id: "slack", name: "Slack", category: "chat", description: t("Catch up on channels and DMs, and reply."),
       connected: false, accounts: [],
       tools: [read("SLACK_SEARCH", "Search messages"), read("SLACK_LIST_UNREADS", "List unreads"), write("SLACK_SEND_MESSAGE", "Send message")],

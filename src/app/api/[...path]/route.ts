@@ -116,7 +116,7 @@ async function put(req: Request, ctx: Ctx) {
   }
   if (a === "keys") {
     const pick = (k: string) => (typeof d[k] === "string" ? String(d[k]) : undefined);
-    setKeys({ composio: pick("composio"), browserbase: pick("browserbase"), browserbaseProject: pick("browserbaseProject") });
+    setKeys({ composio: pick("composio"), browserbase: pick("browserbase"), browserbaseProject: pick("browserbaseProject"), bocha: pick("bocha"), tavily: pick("tavily") });
     if (pick("composio")) await syncConnections().catch(() => []);
     return ok({ services: services() });
   }

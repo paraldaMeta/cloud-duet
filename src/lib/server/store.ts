@@ -117,6 +117,8 @@ export function setTyping(key: string, typing: boolean) {
 export function notify(notice: Omit<AppNotice, "id" | "at">) {
   emit({ type: "notify", notice: { ...notice, id: id(), at: nowIso() } });
   if (state().settings.notifications) void sendPush(currentUserId(), notice);
+  // Loaded lazily: the direct apps read the store themselves.
+  void import("./direct").then((d) => d.mirrorNotice(notice.title, notice.body)).catch((e) => console.error(`[duet] WeChat notification failed: ${(e as Error).message}`));
 }
 
 export function resetAll() {

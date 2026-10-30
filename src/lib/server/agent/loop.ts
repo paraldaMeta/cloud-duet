@@ -206,6 +206,8 @@ async function openai(c: ModelConfig, system: string, lines: Line[], tools: Tool
         else parts.push({ type: "text", text: `${describeFiles([f])} (this type can't be read with this model)` });
       }
       parts.push({ type: "text", text: l.content || "(sent the attached file)" });
+      // Text-only models (DeepSeek and others) only take a string.
+      if (parts.every((p) => p.type === "text")) return { role: l.role, content: parts.map((p) => p.text).join("\n\n") };
       return { role: l.role, content: parts };
     }),
   ];

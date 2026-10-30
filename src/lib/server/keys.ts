@@ -8,12 +8,14 @@ import { pushCount } from "./push";
 import { tr } from "./i18n";
 import { CN_PROVIDERS, cnEnv, cnName, type CnProvider } from "./oauth-cn";
 
-export type ServiceKey = "composio" | "browserbase" | "browserbaseProject";
+export type ServiceKey = "composio" | "browserbase" | "browserbaseProject" | "bocha" | "tavily";
 
 const ENV: Record<ServiceKey, string> = {
   composio: "COMPOSIO_API_KEY",
   browserbase: "BROWSERBASE_API_KEY",
   browserbaseProject: "BROWSERBASE_PROJECT_ID",
+  bocha: "BOCHA_API_KEY",
+  tavily: "TAVILY_API_KEY",
 };
 
 export function getKey(k: ServiceKey): string {
@@ -68,6 +70,16 @@ export function services() {
       id: "browserbase", name: "Browserbase", what: tr("Cloud Duet's own cloud browser. Without it, Cloud Duet uses a browser on this server."),
       ready: !!getKey("browserbase"), hint: hint(getKey("browserbase")), editable: "inline" as const, env: "BROWSERBASE_API_KEY",
       links: [{ label: tr("Get a Browserbase API key"), url: "https://www.browserbase.com/settings" }],
+    },
+    {
+      id: "bocha", name: tr("Bocha web search"), what: tr("Web search for models other than Anthropic's own API (DeepSeek, Qwen, Kimi…). Good for Chinese sources."),
+      ready: !!getKey("bocha"), hint: hint(getKey("bocha")), editable: "inline" as const, env: "BOCHA_API_KEY",
+      links: [{ label: tr("Get a Bocha API key"), url: "https://open.bochaai.com/" }],
+    },
+    {
+      id: "tavily", name: tr("Tavily web search"), what: tr("Web search for models other than Anthropic's own API. Used when Bocha isn't set."),
+      ready: !!getKey("tavily"), hint: hint(getKey("tavily")), editable: "inline" as const, env: "TAVILY_API_KEY",
+      links: [{ label: tr("Get a Tavily API key"), url: "https://app.tavily.com/" }],
     },
     {
       id: "google", name: tr("Sign in with Google"), what: tr("Server setting. Needs an OAuth client (Web application)."),

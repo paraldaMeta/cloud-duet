@@ -9,13 +9,14 @@ import { patch, state } from "../store";
 import { tr } from "../i18n";
 import * as mail from "./mail";
 import * as chat from "./chat";
+import * as more from "./more";
 
-export const DIRECT_APPS: DirectApp[] = ["mailbox", "feishu", "dingtalk", "wecom"];
+export const DIRECT_APPS: DirectApp[] = ["mailbox", "feishu", "dingtalk", "wecom", "wxpush", "yuque"];
 export const isDirect = (id: string): id is DirectApp => (DIRECT_APPS as string[]).includes(id);
 
 type Creds = Record<string, string>;
 const FILE = "direct.json";
-const SECRET = new Set(["password", "appSecret", "webhook", "webhookSecret", "secret"]);
+const SECRET = new Set(["password", "appSecret", "webhook", "webhookSecret", "secret", "key", "token"]);
 
 const all = () => readUserJson<Partial<Record<DirectApp, Creds>>>(FILE, {});
 export const creds = (app: DirectApp): Creds | undefined => all()[app];
@@ -54,6 +55,20 @@ function fields(app: DirectApp): DirectField[] {
       return [
         { key: "webhook", label: tr("Group bot webhook"), type: "url", placeholder: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=…", help: tr("In a WeCom group: ⋯ → Group bots → Add. Copy its webhook URL.") },
       ];
+    case "wxpush":
+      return [
+        { key: "service", label: tr("Service"), type: "select", options: [{ value: "serverchan", label: "Server酱" }, { value: "pushplus", label: "PushPlus 推送加" }] },
+        { key: "key", label: tr("SendKey or token"), type: "password", placeholder: "SCT… / sctp…", help: tr("Server酱: sct.ftqq.com → SendKey, after following its WeChat account. PushPlus: pushplus.plus → token.") },
+        {
+          key: "notices", label: tr("Also send app notifications"), type: "select",
+          options: [{ value: "on", label: tr("Yes: reminders, finished tasks and approvals go to WeChat too") }, { value: "off", label: tr("No: only when Cloud Duet is asked to") }],
+        },
+      ];
+    case "yuque":
+      return [
+        { key: "token", label: "Token", type: "password", help: tr("Yuque → Account settings → Tokens. Give it read access, plus write if Cloud Duet should create docs. Personal tokens need a Yuque membership.") },
+        { key: "host", label: tr("Yuque address"), type: "url", placeholder: "https://www.yuque.com", optional: true, help: tr("Only for a team space, like https://yourteam.yuque.com.") },
+      ];
   }
 }
 
@@ -62,6 +77,8 @@ const INTRO: Record<DirectApp, string> = {
   feishu: "Read and reply in Feishu chats, message colleagues, or post to a group.",
   dingtalk: "Post updates and reminders to a DingTalk group.",
   wecom: "Post updates and reminders to a WeCom group.",
+  wxpush: "Send reminders and updates to your own WeChat through Server酱 or PushPlus.",
+  yuque: "Search and read your Yuque knowledge bases, and save docs there.",
 };
 
 const LINKS: Record<DirectApp, { label: string; url: string }[]> = {
@@ -75,6 +92,11 @@ const LINKS: Record<DirectApp, { label: string; url: string }[]> = {
   ],
   dingtalk: [{ label: "DingTalk custom robot guide", url: "https://open.dingtalk.com/document/robots/custom-robot-access" }],
   wecom: [{ label: "WeCom group bot guide", url: "https://developer.work.weixin.qq.com/document/path/91770" }],
+  wxpush: [
+    { label: "Get a Server酱 SendKey", url: "https://sct.ftqq.com/sendkey" },
+    { label: "Get a PushPlus token", url: "https://www.pushplus.plus/" },
+  ],
+  yuque: [{ label: "Yuque tokens", url: "https://www.yuque.com/settings/tokens" }],
 };
 
 const hint = (v: string) => `…${v.slice(-4)}`;
@@ -84,7 +106,7 @@ export function form(app: DirectApp): DirectForm {
   const values: Record<string, string> = {};
   const saved: Record<string, string> = {};
   for (const [k, v] of Object.entries(c)) {
-    if (k === "allowPrivate") continue;
+    if (k === "allowPrivate" || k === "login" || k === "name") continue;
     if (SECRET.has(k)) saved[k] = hint(v);
     else values[k] = v;
   }
@@ -99,6 +121,8 @@ export function form(app: DirectApp): DirectForm {
 function label(app: DirectApp, c: Creds) {
   if (app === "mailbox") return c.email;
   if (app === "feishu") return c.appId ? `App ${c.appId}` : tr("Group bot");
+  if (app === "wxpush") return c.service === "pushplus" ? "PushPlus" : "Server酱";
+  if (app === "yuque") return c.name ? `${c.name} (${c.login})` : c.login;
   return tr("Group bot");
 }
 
@@ -135,6 +159,20 @@ export async function save(app: DirectApp, input: Record<string, unknown>) {
     if (!next.webhook) throw new Error(tr("Paste the group bot webhook URL."));
     const bad = chat.checkHook(app, next.webhook);
     if (bad) throw new Error(bad);
+  }
+  if (app === "wxpush") {
+    next.service ||= "serverchan";
+    next.notices ||= "on";
+    if (!next.key) throw new Error(tr("Paste the SendKey or token."));
+    // A real message is the only way to check the key, and shows where it lands.
+    if (next.key !== prev.key || next.service !== prev.service) await more.wxpush(next.service, next.key, tr("Cloud Duet is connected"), tr("Reminders and updates from Cloud Duet will show up here."));
+  }
+  if (app === "yuque") {
+    if (!next.token) throw new Error(tr("Paste the Yuque token."));
+    if (next.host) next.host = more.yuqueHost(next.host);
+    const me = await more.yuqueMe({ token: next.token, host: next.host });
+    next.login = me.login;
+    next.name = me.name;
   }
   writeUserJson(FILE, { ...all(), [app]: next });
   patch<Connector>("connectors", app, { connected: true, real: true, direct: true, accounts: [label(app, next)] });
@@ -196,5 +234,25 @@ export async function run(app: DirectApp, op: string, args: Record<string, unkno
     await chat.wecomHook(need("wecom").webhook, s(args.text));
     return "sent";
   }
+  if (app === "wxpush" && op === "send") {
+    const c = need("wxpush");
+    await more.wxpush(c.service, c.key, s(args.title) || "Cloud Duet", s(args.text));
+    return "sent";
+  }
+  if (app === "yuque") {
+    const c = need("yuque") as unknown as more.YuqueCreds;
+    if (op === "search") return more.yuqueSearch(c, s(args.query));
+    if (op === "repos") return more.yuqueRepos(c);
+    if (op === "docs") return more.yuqueDocs(c, s(args.namespace));
+    if (op === "read") return more.yuqueRead(c, s(args.namespace), s(args.slug));
+    if (op === "create") return more.yuqueCreate(c, s(args.namespace), s(args.title), s(args.body) || s(args.text));
+  }
   throw new Error(`Unknown operation ${app}.${op}`);
+}
+
+/** Mirrors an app notification to the person's WeChat when they asked for that. */
+export async function mirrorNotice(title: string, body: string) {
+  const c = creds("wxpush");
+  if (!c || c.notices === "off" || !ready("wxpush")) return;
+  await more.wxpush(c.service, c.key, title, body);
 }

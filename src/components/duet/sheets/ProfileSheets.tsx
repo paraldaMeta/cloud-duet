@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import {
-  Bell, Brain, CircleCheck, CircleX, CreditCard, Gauge, KeyRound, LogOut, MessageSquareHeart, Plug, RotateCcw, Sparkles,
+  Bell, Brain, CircleCheck, CircleX, CreditCard, ExternalLink, Gauge, KeyRound, LogOut, MessageSquareHeart, Plug, RotateCcw, Sparkles,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -337,6 +337,18 @@ export function PaymentsSheet({ open }: { open: boolean }) {
   );
 }
 
+/** OpenAI-compatible providers, mostly ones that work well from mainland China. */
+const MODEL_PRESETS = [
+  { id: "deepseek", name: "DeepSeek", baseURL: "https://api.deepseek.com/v1", model: "deepseek-chat", keys: "https://platform.deepseek.com/api_keys" },
+  { id: "qwen", name: "Qwen (Alibaba Bailian)", baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus", keys: "https://bailian.console.aliyun.com/?tab=model#/api-key" },
+  { id: "kimi", name: "Kimi (Moonshot)", baseURL: "https://api.moonshot.cn/v1", model: "kimi-k2-turbo-preview", keys: "https://platform.moonshot.cn/console/api-keys" },
+  { id: "glm", name: "Zhipu GLM", baseURL: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.6", keys: "https://open.bigmodel.cn/usercenter/apikeys" },
+  { id: "doubao", name: "Doubao (Volcano Ark)", baseURL: "https://ark.cn-beijing.volces.com/api/v3", model: "doubao-seed-1-6-250615", keys: "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey" },
+  { id: "siliconflow", name: "SiliconFlow", baseURL: "https://api.siliconflow.cn/v1", model: "deepseek-ai/DeepSeek-V3", keys: "https://cloud.siliconflow.cn/account/ak" },
+  { id: "minimax", name: "MiniMax", baseURL: "https://api.minimaxi.com/v1", model: "MiniMax-M2", keys: "https://platform.minimaxi.com/user-center/basic-information/interface-key" },
+  { id: "openai", name: "OpenAI", baseURL: "https://api.openai.com/v1", model: "gpt-5.6", keys: "https://platform.openai.com/api-keys" },
+];
+
 interface ModelInfo {
   provider: "anthropic" | "openai";
   model: string;
@@ -427,6 +439,35 @@ export function ModelSheet({ open }: { open: boolean }) {
             ]}
           />
         </div>
+      </Group>
+
+      <Group title={t("Quick setup")} note={t("Fills in the address and a model. Model names change often; check the provider's model list if one fails.")}>
+        <div className="flex flex-wrap gap-2 p-3">
+          {MODEL_PRESETS.map((p) => {
+            const on = provider === "openai" && baseURL === p.baseURL;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setProvider("openai");
+                  setBaseURL(p.baseURL);
+                  setModel(p.model);
+                }}
+                className={cn("rounded-full px-3 py-1.5 text-[13.5px] font-medium transition-colors", on ? "bg-solid text-solid-fg" : "bg-black/[0.06] dark:bg-white/10")}
+              >
+                {t(p.name)}
+              </button>
+            );
+          })}
+        </div>
+        {MODEL_PRESETS.filter((p) => provider === "openai" && baseURL === p.baseURL).map((p) => (
+          <a key={p.id} href={p.keys} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-4 pb-3 text-[13.5px] font-medium text-link">
+            {t("Get a {name} API key", { name: t(p.name) })}
+            <ExternalLink size={12} />
+          </a>
+        ))}
       </Group>
 
       <Group title={t("API key")} note={t("Stored on this server for your account only and never sent back to the browser. Get one at console.anthropic.com/settings/keys or platform.openai.com/api-keys.")}>

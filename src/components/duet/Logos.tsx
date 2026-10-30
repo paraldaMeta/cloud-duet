@@ -100,6 +100,10 @@ export function AppLogo({ id, size = 18 }: { id: string; size?: number }) {
       return <Tile bg="#0089FF" size={size}>钉</Tile>;
     case "wecom":
       return <Tile bg="#0082EF" size={size}>企</Tile>;
+    case "wxpush":
+      return <Tile bg="#07C160" size={size}>微</Tile>;
+    case "yuque":
+      return <Tile bg="#00B96B" size={size}>雀</Tile>;
     case "figma":
       return <Tile bg="#1E1E1E" size={size}>F</Tile>;
     default:

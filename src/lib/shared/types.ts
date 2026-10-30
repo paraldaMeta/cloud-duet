@@ -166,7 +166,7 @@ export interface ActionPayload {
 }
 
 /** Apps Cloud Duet talks to directly with credentials the person enters, no Composio. */
-export type DirectApp = "mailbox" | "feishu" | "dingtalk" | "wecom";
+export type DirectApp = "mailbox" | "feishu" | "dingtalk" | "wecom" | "wxpush" | "yuque";
 
 export interface DirectField {
   key: string;
