@@ -8,18 +8,16 @@
 
 项目不内置任何密钥，均在应用内或 `.env.local` 中自行填写。
 
-**English** · An open-source proactive work agent for the web. It briefs you, works in the background, and always asks before it sends, pays, or submits anything. The UI defaults to Simplified Chinese; switch to English under Profile → Language.
-
 > 灵感来自 Anthropic Claude Duet 研究预览。独立项目，与 Anthropic 无隶属或背书关系。「Claude」为 Anthropic 商标。
 
 <p align="center">
-  <img src="docs/screenshots/chat.png" alt="Chat — briefings, cards, and background tasks / 聊天、卡片与后台任务" width="360" />
+  <img src="docs/screenshots/chat.png" alt="聊天：简报、卡片与后台任务" width="360" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/onboarding-proactive.png" alt="Onboarding — proactive 24/7 help / 引导：主动简报" width="280" />
-  <img src="docs/screenshots/onboarding-browser.png" alt="Onboarding — built-in browser / 引导：浏览器代操作" width="280" />
-  <img src="docs/screenshots/onboarding-integrations.png" alt="Onboarding — app connections / 引导：应用连接" width="280" />
+  <img src="docs/screenshots/onboarding-proactive.png" alt="引导：主动简报" width="280" />
+  <img src="docs/screenshots/onboarding-browser.png" alt="引导：浏览器代操作" width="280" />
+  <img src="docs/screenshots/onboarding-integrations.png" alt="引导：应用连接" width="280" />
 </p>
 
 ## 快速开始
